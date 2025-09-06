@@ -5,6 +5,9 @@ import Footer from "../../components/Footer.astro";
 import Seo from "../../components/Seo.astro";
 import { getCollection } from 'astro:content';
 
+// Pre-render dynamic blog pages so getStaticPaths runs during build
+export const prerender = true;
+
 export async function getStaticPaths() {
   const posts = await getCollection('blog', ({ data }) => !data.draft);
   return posts.map((post) => ({ params: { slug: post.slug }, props: { post } }));

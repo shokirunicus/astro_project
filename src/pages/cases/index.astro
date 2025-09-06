@@ -2,11 +2,14 @@
 import Base from "../../layouts/Base.astro";
 import Nav from "../../components/Nav.astro";
 import Footer from "../../components/Footer.astro";
+import ComingSoon from "../../components/ComingSoon.astro";
 ---
 <Base title="Cases | AIHALO">
   <Fragment slot="nav"><Nav /></Fragment>
-  <h1>ケーススタディ一覧</h1>
-  <p>MDXコンテンツ（準備中）。</p>
+  <ComingSoon 
+    title="導入事例"
+    description="AIHALOを導入いただいた企業様の成功事例をご紹介します。"
+    expectedDate="2025年1月公開予定"
+  />
   <Fragment slot="footer"><Footer /></Fragment>
 </Base>
-
