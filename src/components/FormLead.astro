@@ -1,0 +1,24 @@
+---
+// Placeholder form markup only. Submission handled by /api/lead (stubbed).
+---
+<form method="post" action="/api/lead">
+  <label>
+    お名前
+    <input name="name" type="text" maxlength="100" />
+  </label>
+  <label>
+    会社名
+    <input name="company" type="text" maxlength="200" />
+  </label>
+  <label>
+    メールアドレス
+    <input name="email" type="email" required />
+  </label>
+  <label>
+    <input name="consent" type="checkbox" value="1" required />
+    プライバシーポリシーに同意
+  </label>
+  <input type="text" name="hp" aria-hidden="true" tabindex="-1" style="position:absolute;left:-9999px" />
+  <button type="submit">送信してPDFを受け取る</button>
+</form>
+

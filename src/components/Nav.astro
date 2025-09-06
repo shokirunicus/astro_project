@@ -1,0 +1,16 @@
+---
+const links = [
+  { href: '/', label: 'Home' },
+  { href: '/services', label: 'Services' },
+  { href: '/cases', label: 'Cases' },
+  { href: '/blog', label: 'Blog' },
+  { href: '/lead', label: 'Lead' },
+  { href: '/contact', label: 'Contact' },
+  { href: '/legal/privacy', label: 'Privacy' },
+];
+---
+<header class="sticky top-0 z-50 backdrop-blur bg-white/95">
+  <nav aria-label="Global" class="container mx-auto px-4 py-3 flex gap-4">
+    {links.map((l) => <a href={l.href}>{l.label}</a>)}
+  </nav>
+</header>

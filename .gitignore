@@ -15,7 +15,16 @@ pnpm-debug.log*
 
 # environment variables
 .env
-.env.production
+.env.*
+!.env.example
+
+# credentials (never commit real keys)
+credentials/
+*.pem
+*.p12
+*.key
+*.crt
+*.json
 
 # macOS-specific files
 .DS_Store

@@ -1,0 +1,301 @@
+# AIHALO 新規Webサイト：要件定義書・SOW・デザイン要件書（初版）
+
+最終更新日: 2025-09-05 / 作成: GPT-5 Thinking
+
+---
+
+## 0. プロジェクトサマリー
+
+* **プロジェクト名**: AIHALO 新規Webサイト構築
+* **目的**: 名刺代わりとなるフォーマル×洗練の静的サイトを新規ドメインで構築し、リード獲得（PDF配布）と少額販売（Stripe）までを最小運用コストで実現。
+* **前提**: Vibe Coding（Cursor or VS Code + Claude/codexIDE）を前提。CMSレス（MDX中心運用）で最速公開。
+* **推奨スタック（本提案）**: Astro + MDX + Tailwind / Vercel（本番） / n8n（Hostinger VPS）/ Stripe Checkout / Resend（メール）/ Tally（フォーム）/ Plausible（解析）
+* **ドメイン**: 新規取得（例: `aihalo.jp` または `aihalo.ai` 等）
+
+---
+
+# 1) 要件定義書（Requirements Specification）
+
+### 1.1 背景と目的
+
+* 旧サイト（WordPress/SWELL）は開発中断。刷新感のある**新規ドメイン**で、**スピード重視**かつ**運用軽量**な構成に切替。
+* ターゲットは**忙しい経営者層**。最短で「信頼できる・センスがある・仕事が早い」を伝える。
+
+### 1.2 成果目標（KGI/KPI）
+
+* **KGI**: 月間リード数の継続創出（例: 30件/月）
+* **KPI**:
+
+  * LP→メール登録CVR: 8%〜15%
+  * ブログ→LP遷移率: 6%〜10%
+  * ページLCP: ≤ 2.0s（高速回線想定）
+  * CLS: ≤ 0.05 / TBT: ≤ 200ms（初期描画優先）
+
+### 1.3 スコープ（機能要件）
+
+* 静的ページ群（トップ/サービス/プロフィール/お問い合わせ/法定ページ）
+* ブログ（MDX / タグ / 目次 / OG自動生成）
+* リード獲得: PDF配布（Tally → n8n → Resend送付）
+* 少額販売: Stripe Checkout（1〜数SKU）
+* 分析計測: Plausible（またはVercel Analytics）
+* SEO: サイトマップ/robots/構造化データ/OG画像テンプレ
+* アクセス制御: Cloudflare Turnstile またはTally側SPAM対策
+
+**スコープ外**
+
+* 会員制/検索高度化/多言語/大規模CMS/複雑な在庫やサブスク設計
+* 旧サイトからのデータ移行（本案件は**完全新規**）
+
+### 1.4 非機能要件
+
+* **パフォーマンス**: Lighthouse Performance ≥ 90（主要テンプレ）
+* **可用性**: Vercel CDN / UptimeRobot監視
+* **セキュリティ**: HTTPS常時化、SecretsはVercel環境変数で管理、Stripe/Resendの鍵はn8n Vault等で保護
+* **アクセシビリティ**: WCAG 2.2 AA 準拠方針（フォームラベル、コントラスト、キーボード操作）
+* **拡張性**: 将来Next.jsやCMSに移行可能なヘッドレス構成を意識（データとプレゼンの分離）
+
+### 1.5 情報設計（サイトマップ）
+
+* **/**: ヒーロー（価値訴求）/実績要素/サービス概要/CTA/最新記事3件/再CTA
+* **/services**: サービス詳細（プラン・価格レンジ・導入プロセス・FAQ）
+* **/about**: プロフィール・ミッション・価値観・メディア掲載
+* **/blog**: 一覧（タグ/検索は簡易 or なし）
+* **/blog/\[slug]**: 記事本文（目次/著者情報/CTA）
+* **/lead**: リードマグネットLP（特典PDFの価値訴求）
+* **/contact**: お問い合わせ（Tally埋め込み）
+* **/legal/privacy**: プライバシーポリシー
+* **/legal/tokushoho**: 特定商取引法に基づく表記
+* **/thanks**: 送信/購入/登録サンクス
+
+### 1.6 コンテンツモデル
+
+* **Blog**: title, slug, description, publishedAt, tags\[], heroImage, body(MDX), ogTitle/ogDesc(optional)
+* **Service**: name, summary, features\[], process\[], priceNote, ctaLink
+* **Lead**: offerName, benefits\[], previewImage, formEmbedId, privacyNote
+* **Legal**: title, body(MDX)
+
+### 1.7 主要ユーザーフロー
+
+* **リード獲得**: `/lead` → Tally → n8n（スプレッドシート格納/Resend送信）→ PDF配布 → `/thanks`
+* **少額販売**: `/services` → Stripe Checkout → webhooks（n8n）→ 領収/納品メール → `/thanks`
+* **問い合わせ**: `/contact` → Tally → n8n ルーティング（緊急タグ付与→メール/Slack通知）
+
+### 1.8 技術構成
+
+* **フロント**: Astro（SSG）+ MDX + Tailwind
+* **ホスティング**: Vercel（本番/プレビュー自動）
+* **自動化**: GitHub → Vercel CI/CD
+* **バックエンド最小**: Vercel Functions（Stripeセッション生成等）
+* **連携**: Stripe / Resend / Tally / n8n（Hostinger VPS）/ Plausible
+* **監視**: UptimeRobot
+
+### 1.9 環境・運用
+
+* **環境名**: `preview`（PRごと）/ `production`
+* **Secrets**: `STRIPE_SECRET_KEY`, `RESEND_API_KEY`, `PLAUSIBLE_DOMAIN`, `N8N_WEBHOOK_URL` 等
+* **ブランチ戦略**: `main`（本番）/ `feat/*`（機能）/ PRレビュー → 自動プレビュー
+
+### 1.10 受け入れ基準（抜粋）
+
+* 主要テンプレ（Top/Services/Blog Post/Lead/Contact/Legal）がデザイン要件を満たす
+* Lighthouse（デスクトップ）でPerf/Best/Acc/SEO ≥ 90（Top/Blog Post）
+* リード登録→PDF配布メールが自動送信される
+* Stripe Checkoutが本番鍵で決済完了（テスト商品で検証）
+* サイトマップ/robots/OG/JSON-LDが出力される
+
+---
+
+# 2) Statement of Work（SOW）
+
+### 2.1 作業範囲
+
+1. 設計
+
+* IA/サイトマップ、コンテンツモデル、リード/決済フロー
+* デザイン要件書（本書3章）策定
+
+2. 実装
+
+* Astro初期化、Tailwind/トークン、レイアウト/コンポーネント
+* ページ実装（Top/Services/About/Blog/Lead/Contact/Legal/Thanks）
+* ブログMDX/Content Collections、OG自動生成
+* Stripe Checkout最小実装、Vercel Functions
+* Tally埋め込み、n8nワークフロー（登録/購入の自動送信）
+* SEO/解析/監視設定
+
+3. 品質保証
+
+* E2E（主要導線）、アクセシビリティ・色コントラスト点検
+* Lighthouseチューニング、リンク切れチェック
+
+4. ローンチ支援
+
+* ドメイン接続、環境変数、本番公開チェックリスト
+* 運用マニュアル（更新手順/記事投稿）
+
+### 2.2 成果物
+
+* リポジトリ（Astro/Tailwind/MDX/設定類）
+* n8nワークフロー（JSONエクスポート）
+* デザイン要件書/運用マニュアル/テストレポート/チェックリスト
+
+### 2.3 体制と役割（RACI）
+
+* **Product Owner（貴社）**: 目的・優先度・承認（A）
+* **Designer/Front（当方）**: 設計/実装/品質（R）
+* **Automation（当方）**: n8n/連携（R）
+* **Reviewer（貴社）**: UI/文面/法務確認（C/I）
+
+### 2.4 スケジュール（目安: 1〜2週間）
+
+* Wk1: 設計/デザイン要件/土台実装、Top/Services/Blog枠、Tally/n8n雛形
+* Wk2: Stripe/Thanks/Legal/微調整、QA/パフォーマンス/公開
+
+### 2.5 受け入れ・変更管理
+
+* 各マイルストーンでレビュー & 合意
+* 仕様変更は影響範囲/工数見積の上で合意し反映
+
+### 2.6 コミュニケーション/成果物管理
+
+* GitHub（Issues/PR）/ Figma（必要時）/ Notion or Markdown docs
+* 進捗: デイリーブリーフ（短文）/ 週次サマリ
+
+### 2.7 費用・支払条件（ドラフト）
+
+* **固定費**: 設計〜公開一式（税別$TBD$円）
+* **運用支援（任意）**: 月次サポート（$TBD$円/月）
+* **支払**: 50%着手/50%納品後（要相談）
+
+### 2.8 リスクと対策
+
+* テキスト/画像素材遅延 → ダミーで先行、後差し入替
+* 外部サービス障害 → 代替導線（問い合わせメール）
+* ドメイン到達遅延 → 一時 `*.vercel.app` 公開
+
+---
+
+# 3) デザイン要件書（Design Requirements）
+
+### 3.1 デザイン方針
+
+* **キーワード**: 静謐・端正・意思決定が早い・手触りは軽い
+* **トーン**: コーポレート寄りのフォーマルだが“硬すぎない”洗練
+* **差別化**: 余白/タイポ/配色で“落ち着き×先進性”を両立
+
+### 3.2 ブランド基礎（デザイントークン）
+
+* **カラー（初期案/AAコントラスト配慮）**
+
+  * Primary: **Navy 900** `#0F172A`
+  * Secondary: **Slate 700** `#334155`
+  * Accent: **Cyan 500** `#06B6D4`
+  * Accent Alt: **Indigo 500** `#6366F1`
+  * Surface: **White** `#FFFFFF`
+  * Surface Alt: **Slate 50** `#F8FAFC`
+  * Text Primary: `#0B1220` / Text Secondary: `#475569`
+  * Semantic: Success `#16A34A` / Warning `#F59E0B` / Error `#DC2626`
+
+* **タイポグラフィ**
+
+  * 日本語: **Noto Sans JP**（見出し/本文）
+  * 欧文: **Inter**（英字・数字の視認性）
+  * ベース: 16px / 行間 1.6
+  * 見出しスケール（clamp推奨）
+
+    * H1: clamp(32px, 5vw, 48px)
+    * H2: clamp(28px, 3.5vw, 36px)
+    * H3: 24px / H4: 20px / Lead: 18px
+  * 字間: 和文は0〜0.02em、欧文は0〜0.02em
+
+* **スペーシング**: 4/8/12/16/24/32/48/64（セクションは64〜96）
+
+* **グリッド**: 12カラム / コンテナ幅: sm 640, md 768, lg 1024, xl 1280, 2xl 1440
+
+* **半径/シャドウ**: `rounded-2xl` / 低コントラストなソフトシャドウ
+
+### 3.3 コンポーネント仕様（抜粋）
+
+* **ボタン**
+
+  * Primary: 背景 Primary / テキスト白 / hover: shade 10% / focus-visible outline
+  * Secondary: 背景 Surface Alt / 枠 Slate 200 / hover: 枠色強調
+  * Link Button: テキスト Accent + アイコン（`lucide`）
+* **ナビゲーション**
+
+  * ヘッダー: 固定/透明→スクロールでSurface化、現在地強調
+  * フッター: 3カラム（会社/法定/CTA）、コピーライト最下段
+* **カード**
+
+  * サービス/記事カード: タイトル・抜粋・タグ・日付・CTA矢印
+* **フォーム**
+
+  * ラベル明示/入力補助テキスト/エラーメッセージ/必須マーク
+  * SPAM対策: Turnstile（またはTally側）
+
+### 3.4 ページテンプレート（キービジュアル）
+
+* **Hero**: シンプル見出し＋1行リード＋主要CTA（2nd CTAは薄め）
+* **セクション構成**: Value（何を/誰に）→ Proof（実績/声）→ Service（解像度高く）→ Process（導入ステップ）→ CTA
+* **OG画像テンプレ**: 1200×630 / Navyグラデ + タイトル + ロゴ
+
+### 3.5 レスポンシブ/アクセシビリティ
+
+* **ブレークポイント**: Tailwind既定（sm 640 / md 768 / lg 1024 / xl 1280）
+* **ヒット領域**: 44×44px 以上
+* **コントラスト**: 本文 ≥ 4.5:1、見出し/主要ボタン ≥ 7:1を目標
+* **キーボード操作**: フォーカスリング明示、スキップリンク
+
+### 3.6 モーション
+
+* **原則**: さりげないフェード/上下トランスフォーム（200–300ms）
+* **抑制**: `prefers-reduced-motion` を尊重
+
+### 3.7 画像/イラスト
+
+* **スタイル**: 実写は寒色寄りで統一、イラストは幾何学フラット
+* **最適化**: `astro:assets` / WebP優先 / 遅延読み込み
+
+### 3.8 デザインガバナンス
+
+* **Figmaライブラリ**: カラー/タイポ/コンポーネント/テンプレ別ページ
+* **命名規則**: `aihalo/*`（例：`aihalo/button/primary`）
+* **レビュー**: 初回モック→1回目修正→最終FIXの3ステップ
+
+---
+
+## 付録 A. 実装ディレクトリ（案）
+
+```
+/ (repo root)
+├─ src/
+│  ├─ pages/  # ルーティング
+│  ├─ layouts/
+│  ├─ components/
+│  ├─ content/    # MDX（blog, legal, serviceなど）
+│  ├─ styles/
+│  └─ lib/        # utils（og生成・schema等）
+├─ public/        # 画像・favicon
+├─ functions/     # Vercel Functions（stripe/session 等）
+├─ scripts/
+└─ astro.config.mjs / tailwind.config.js / tsconfig.json
+```
+
+## 付録 B. 環境変数（例）
+
+* `SITE_URL=https://<new-domain>`
+* `STRIPE_SECRET_KEY=...`
+* `RESEND_API_KEY=...`
+* `PLAUSIBLE_DOMAIN=<new-domain>`
+* `N8N_WEBHOOK_URL=https://n8n.<your-domain>/webhook/...`
+
+## 付録 C. 公開チェックリスト（抜粋）
+
+* [ ] ドメイン接続/SSL
+* [ ] 主要導線E2E通過
+* [ ] Lighthouse 90+/90+/90+/90+
+* [ ] OG/Twitterカード確認
+* [ ] 404/500ページ用意
+* [ ] フォーム/決済の本番鍵切替
+
+---

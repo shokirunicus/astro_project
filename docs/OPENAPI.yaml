@@ -1,0 +1,54 @@
+openapi: 3.1.0
+info:
+  title: AIHALO Website API
+  version: 1.0.0
+servers:
+  - url: https://example.com
+paths:
+  /api/lead:
+    post:
+      summary: Submit lead form
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, consent]
+              properties:
+                name: { type: string, maxLength: 100 }
+                company: { type: string, maxLength: 200 }
+                email: { type: string, format: email }
+                consent: { type: boolean }
+                honeypot: { type: string }
+                utm:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200": { description: OK }
+        "400": { description: Validation error }
+        "429": { description: Rate limited }
+        "500": { description: Server error }
+  /api/pdf/{token}:
+    get:
+      summary: Download PDF via signed token
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        "302": { description: Redirect to signed PDF URL }
+        "400": { description: Invalid/expired token }
+  /api/stripe/webhook:
+    post:
+      summary: Stripe webhook endpoint
+      requestBody:
+        required: true
+        content:
+          application/json: {}
+      responses:
+        "200": { description: OK }
+        "400": { description: Invalid signature }
+        "500": { description: Processing error }
+

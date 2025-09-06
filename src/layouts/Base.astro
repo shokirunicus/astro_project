@@ -1,0 +1,30 @@
+---
+import "../styles/tailwind.css";
+import Nav from "../components/Nav.astro";
+import { organizationJsonLd } from "../lib/seo";
+const { title = 'AIHALO', description = 'Executive AI Consulting' } = Astro.props;
+---
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title}</title>
+    <slot name="head" />
+    <script type="application/ld+json" set:html={JSON.stringify(organizationJsonLd())} />
+  </head>
+  <body class="bg-white text-slate-900">
+    <a href="#main" class="skip-link">スキップして本文へ</a>
+    <Nav />
+    <main id="main" class="container mx-auto px-4">
+      <slot />
+    </main>
+    <slot name="footer" />
+    <style>
+      .skip-link{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+      .skip-link:focus{position:static;width:auto;height:auto;padding:.5rem 1rem;background:#fff;color:#000;border:2px solid #000}
+    </style>
+  </body>
+  </html>

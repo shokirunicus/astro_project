@@ -1,16 +1,175 @@
 ---
-
+import Base from '../layouts/Base.astro';
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Base 
+  title="AIHALO - AIコンサルティングで経営を革新" 
+  description="90日で成果を出すAIコンサルティング。経営者のためのAI活用戦略をご提案します。"
+>
+  <!-- Hero Section -->
+  <section class="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-navy via-slate-900 to-navy">
+    <div class="container mx-auto px-4 py-24 text-center">
+      <h1 class="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight">
+        AIで経営を<span class="text-cyan">革新</span>する
+      </h1>
+      <p class="text-xl md:text-2xl text-slate-300 mb-12 max-w-3xl mx-auto">
+        90日で成果を出すAIコンサルティング<br />
+        経営者のためのAI活用戦略をご提案します
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="/lead" class="inline-block px-8 py-4 bg-cyan text-navy font-bold rounded-lg hover:bg-cyan/90 transition-colors">
+          資料をダウンロード
+        </a>
+        <a href="/services" class="inline-block px-8 py-4 bg-transparent text-white border-2 border-white/20 font-bold rounded-lg hover:bg-white/10 transition-colors">
+          サービスを見る
+        </a>
+      </div>
+    </div>
+    <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+      <svg class="w-6 h-6 text-white/50 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+      </svg>
+    </div>
+  </section>
+
+  <!-- Value Proposition -->
+  <section class="py-24 bg-white">
+    <div class="container mx-auto px-4">
+      <h2 class="text-4xl md:text-5xl font-bold text-navy text-center mb-16">
+        なぜAIHALOが選ばれるのか
+      </h2>
+      <div class="grid md:grid-cols-3 gap-8">
+        <div class="text-center p-8 rounded-2xl bg-slate-50 hover:shadow-lg transition-shadow">
+          <div class="w-16 h-16 bg-cyan/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span class="text-2xl">🎯</span>
+          </div>
+          <h3 class="text-xl font-bold text-navy mb-4">90日で成果を約束</h3>
+          <p class="text-slate-600">
+            スピード重視の実装で、3ヶ月以内に具体的な成果をお届けします
+          </p>
+        </div>
+        <div class="text-center p-8 rounded-2xl bg-slate-50 hover:shadow-lg transition-shadow">
+          <div class="w-16 h-16 bg-cyan/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span class="text-2xl">💡</span>
+          </div>
+          <h3 class="text-xl font-bold text-navy mb-4">ROIファースト</h3>
+          <p class="text-slate-600">
+            投資対効果を最優先に、費用対効果の高いソリューションを提案
+          </p>
+        </div>
+        <div class="text-center p-8 rounded-2xl bg-slate-50 hover:shadow-lg transition-shadow">
+          <div class="w-16 h-16 bg-cyan/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span class="text-2xl">🚀</span>
+          </div>
+          <h3 class="text-xl font-bold text-navy mb-4">実装まで伴走</h3>
+          <p class="text-slate-600">
+            戦略立案から実装、運用まで一貫してサポートします
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Services Overview -->
+  <section class="py-24 bg-slate-50">
+    <div class="container mx-auto px-4">
+      <h2 class="text-4xl md:text-5xl font-bold text-navy text-center mb-16">
+        サービス
+      </h2>
+      <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div class="bg-white p-8 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+          <h3 class="text-2xl font-bold text-navy mb-4">AIコンサルティング</h3>
+          <p class="text-slate-600 mb-6">
+            貴社の課題を分析し、最適なAI活用戦略を策定。技術選定から実装計画まで包括的にサポート。
+          </p>
+          <a href="/services#consulting" class="text-cyan font-semibold hover:underline">
+            詳しく見る →
+          </a>
+        </div>
+        <div class="bg-white p-8 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+          <h3 class="text-2xl font-bold text-navy mb-4">AI実装支援</h3>
+          <p class="text-slate-600 mb-6">
+            戦略を実行に移すための技術支援。プロトタイプ開発から本番導入まで伴走します。
+          </p>
+          <a href="/services#implementation" class="text-cyan font-semibold hover:underline">
+            詳しく見る →
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="py-24 bg-gradient-to-r from-navy to-slate-900">
+    <div class="container mx-auto px-4 text-center">
+      <h2 class="text-4xl md:text-5xl font-bold text-white mb-8">
+        AIで経営を次のステージへ
+      </h2>
+      <p class="text-xl text-slate-300 mb-12 max-w-2xl mx-auto">
+        まずは無料の資料をダウンロードして、AI活用の可能性をご確認ください
+      </p>
+      <a href="/lead" class="inline-block px-10 py-5 bg-cyan text-navy font-bold text-lg rounded-lg hover:bg-cyan/90 transition-colors">
+        無料資料をダウンロード
+      </a>
+    </div>
+  </section>
+
+  <!-- Recent Articles -->
+  <section class="py-24 bg-white">
+    <div class="container mx-auto px-4">
+      <h2 class="text-4xl md:text-5xl font-bold text-navy text-center mb-16">
+        最新の記事
+      </h2>
+      <div class="grid md:grid-cols-3 gap-8">
+        <!-- プレースホルダー記事 -->
+        <article class="bg-slate-50 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
+          <div class="p-8">
+            <div class="text-sm text-cyan mb-2">2024.01.15</div>
+            <h3 class="text-xl font-bold text-navy mb-3">
+              ChatGPTを業務に活用する5つの方法
+            </h3>
+            <p class="text-slate-600 mb-4">
+              業務効率化のためのChatGPT活用事例と導入のポイントを解説します。
+            </p>
+            <a href="/blog/chatgpt-business" class="text-cyan font-semibold hover:underline">
+              続きを読む →
+            </a>
+          </div>
+        </article>
+        <article class="bg-slate-50 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
+          <div class="p-8">
+            <div class="text-sm text-cyan mb-2">2024.01.10</div>
+            <h3 class="text-xl font-bold text-navy mb-3">
+              中小企業のAI導入成功事例
+            </h3>
+            <p class="text-slate-600 mb-4">
+              限られた予算でAI導入に成功した中小企業の事例をご紹介します。
+            </p>
+            <a href="/blog/sme-ai-success" class="text-cyan font-semibold hover:underline">
+              続きを読む →
+            </a>
+          </div>
+        </article>
+        <article class="bg-slate-50 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
+          <div class="p-8">
+            <div class="text-sm text-cyan mb-2">2024.01.05</div>
+            <h3 class="text-xl font-bold text-navy mb-3">
+              AIツール選定の判断基準
+            </h3>
+            <p class="text-slate-600 mb-4">
+              数多くのAIツールから最適なものを選ぶための評価基準を解説。
+            </p>
+            <a href="/blog/ai-tool-selection" class="text-cyan font-semibold hover:underline">
+              続きを読む →
+            </a>
+          </div>
+        </article>
+      </div>
+      <div class="text-center mt-12">
+        <a href="/blog" class="inline-block px-8 py-3 bg-slate-100 text-navy font-semibold rounded-lg hover:bg-slate-200 transition-colors">
+          すべての記事を見る
+        </a>
+      </div>
+    </div>
+  </section>
+</Base>
