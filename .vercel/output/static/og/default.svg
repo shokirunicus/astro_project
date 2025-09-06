@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="AIHALO Open Graph Image">
+  <defs>
+    <!-- Background: Navy → Slate → Navy -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="50%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <!-- Cyan glow for accent underline -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Logo: AIHALO (center) -->
+  <text x="600" y="270" text-anchor="middle" font-family="Inter, 'Noto Sans JP', system-ui, sans-serif" font-size="150" fill="#FFFFFF" font-weight="800" letter-spacing="4">AIHALO</text>
+
+  <!-- Catch copy -->
+  <text x="600" y="350" text-anchor="middle" font-family="Inter, 'Noto Sans JP', system-ui, sans-serif" font-size="54" fill="#E5E7EB" font-weight="700">AIで経営を革新する</text>
+
+  <!-- Sub text -->
+  <text x="600" y="405" text-anchor="middle" font-family="Inter, 'Noto Sans JP', system-ui, sans-serif" font-size="30" fill="#C7D2FE">90日で成果を出すAIコンサルティング</text>
+
+  <!-- Cyan accent underline -->
+  <rect x="300" y="420" width="600" height="6" rx="3" fill="#06B6D4" filter="url(#glow)"/>
+
+  <!-- Cyan corner accents -->
+  <rect x="60" y="60" width="120" height="4" fill="#06B6D4" opacity="0.9"/>
+  <rect x="60" y="60" width="4" height="120" fill="#06B6D4" opacity="0.9"/>
+  <rect x="1040" y="566" width="100" height="4" fill="#06B6D4" opacity="0.8"/>
+  <rect x="1136" y="470" width="4" height="100" fill="#06B6D4" opacity="0.8"/>
+</svg>
