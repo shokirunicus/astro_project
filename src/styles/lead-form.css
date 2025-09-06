@@ -1,0 +1,74 @@
+/* Lead form basic styles */
+.lead-form__container {
+  max-width: 640px;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  background: #f8fafc; /* slate-50 */
+}
+.lead-form__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a; /* navy */
+  margin: 0 0 0.25rem 0;
+}
+.lead-form__subtitle { color: #475569; margin-bottom: 1rem; }
+
+.lead-form { display: grid; gap: 1rem; }
+.lead-form__group { display: grid; gap: 0.5rem; }
+.lead-form__group label { font-weight: 600; color: #0f172a; }
+.lead-form__group input[type="text"],
+.lead-form__group input[type="email"] {
+  border: 1px solid #cbd5e1; /* slate-300 */
+  border-radius: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  font-size: 1rem;
+  background: #fff;
+}
+.lead-form__group input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.4); /* cyan-400 */
+  border-color: #22d3ee;
+}
+.lead-form__group--consent { margin-top: 0.5rem; }
+.lead-form__checkbox { display: flex; align-items: center; gap: 0.5rem; color: #334155; }
+.lead-form__link { color: #06b6d4; text-decoration: underline; }
+
+.lead-form__hp { display: none; } /* honeypot hidden */
+
+.lead-form__req {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  color: #fff;
+  background: #0ea5e9; /* sky-500 */
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.35rem;
+}
+
+.lead-form__actions { margin-top: 0.5rem; }
+.lead-form__button {
+  background: #22d3ee; /* cyan-400 */
+  color: #0f172a;
+  font-weight: 700;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease-in-out, opacity 0.2s;
+}
+.lead-form__button:hover { background: #06b6d4; }
+.lead-form__button[disabled] { opacity: 0.6; cursor: not-allowed; }
+
+.lead-form__alert {
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0 1rem;
+  font-weight: 600;
+}
+.lead-form__alert--error { background: #fee2e2; color: #991b1b; }
+.lead-form__alert--success { background: #dcfce7; color: #14532d; }
+
+@media (min-width: 768px) {
+  .lead-form__container { padding: 2rem; }
+}
+
