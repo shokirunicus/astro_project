@@ -1,0 +1,120 @@
+$schema: "https://example.com/cco.schema.v1"
+project:
+  id: "aihalo-site"
+  name: "AIHALO Corporate Website"
+  type: website
+  goals: ["lead_generation","brand_trust","revenue_checkout"]
+  kpis: ["mql_per_month:30","lp_to_email_cvr:8-15%","blog_to_lp_rate:6-10%","page_lcp:2.0s"]
+stakeholders:
+  - role: "Owner"
+    name: "Client Exec Team"
+    responsibilities: ["Direction","Approval","Content"]
+  - role: "Engineering"
+    name: "Web Team"
+    responsibilities: ["Architecture","Implementation","Ops"]
+requirements:
+  functional:
+    - { id: F-001, name: "Global layout (Home/Nav/Footer)", why: "Primary CTAs and trust surface", user_story: "As an executive, I quickly grasp value and reach CTAs", acceptance: ["Responsive nav/footer; primary CTA above the fold","Mobile-friendly navigation; skip links"], edge_cases: ["Nav hierarchy bloat; external link rel/target"], depends_on: [] }
+    - { id: F-002, name: "Services packages (incl. 90-day)", why: "Clarity and speed", user_story: "Compare packages", acceptance: ["Package table/FAQ/CTA"], edge_cases: ["No price → LP"], depends_on: ["F-001"] }
+    - { id: F-003, name: "Case studies (MDX)", why: "Social proof", user_story: "Find similar-industry success", acceptance: ["List/detail; tags; related"], edge_cases: ["Anonymous cases"], depends_on: ["F-001"] }
+    - { id: F-004, name: "Blog (MDX)", why: "Organic acquisition", user_story: "Skim insights", acceptance: ["Index/detail; breadcrumbs; tags; drafts excluded"], edge_cases: ["Publish guard"], depends_on: ["F-001"] }
+    - { id: F-005, name: "Lead gen LP (PDF offer)", why: "Stable MQL", user_story: "Get PDF for email", acceptance: ["Hero; form; consent; thanks"], edge_cases: ["Bot; duplicate; resend"], depends_on: ["F-006","F-007"] }
+    - { id: F-006, name: "Lead form (validation/antispam)", why: "Quality+compliance", user_story: "Minimal friction", acceptance: ["Required/format; honeypot; success/failure"], edge_cases: ["Rapid re-submits; no-JS"], depends_on: ["F-001"] }
+    - { id: F-007, name: "PDF delivery (email + signed URL)", why: "Anti-bot", user_story: "Receive link in 2 minutes", acceptance: ["Expiring link; expire/404/resend"], edge_cases: ["Mail delays; leaked URLs"], depends_on: ["F-006","F-016"] }
+    - { id: F-008, name: "Admin notifications (Mail/Slack)", why: "Immediate follow-up", user_story: "See lead promptly", acceptance: ["Lead fields; UTM; dup flag"], edge_cases: ["Spam bursts; quiet hours"], depends_on: ["F-006"] }
+    - { id: F-009, name: "Lead storage (Sheet/Airtable)", why: "NoOps CRM", user_story: "Keep leads", acceptance: ["Upsert by email; timestamp; consent"], edge_cases: ["API failures; retries"], depends_on: ["F-006","F-016"] }
+    - { id: F-010, name: "Stripe Checkout", why: "Monetize", user_story: "Pay safely", acceptance: ["Product; checkout; success/cancel; receipt"], edge_cases: ["Currency/tax"], depends_on: ["F-002","F-016"] }
+    - { id: F-011, name: "Stripe webhook processing", why: "Automation", user_story: "Receive next steps", acceptance: ["Verify signature; idempotency"], edge_cases: ["Replays; delays"], depends_on: ["F-010","F-016"] }
+    - { id: F-012, name: "SEO baseline", why: "Discoverability", user_story: "Proper previews", acceptance: ["Meta/OGP/sitemap/robots"], edge_cases: ["Future i18n"], depends_on: ["F-001"] }
+    - { id: F-013, name: "Analytics & conversions", why: "KPI tracking", user_story: "See MQL/checkout/LCP", acceptance: ["Event naming; consent gating"], edge_cases: ["Ad blockers"], depends_on: ["F-005","F-010","F-018"] }
+    - { id: F-014, name: "Accessibility baseline", why: "Trust", user_story: "Accessible content", acceptance: ["Contrast; keyboard; focus"], edge_cases: ["Motion sensitivity"], depends_on: ["F-001"] }
+    - { id: F-015, name: "Performance optimization", why: "SEO/UX", user_story: "Fast hero", acceptance: ["Images/fonts optimized; lazy; CLS"], edge_cases: ["External scripts"], depends_on: ["F-001"] }
+    - { id: F-016, name: "Vercel deploy & envs", why: "Ops", user_story: "CI/CD with secrets", acceptance: ["Env list STRIPE/SLACK/MAIL/STORE"], edge_cases: ["Stage/prod split"], depends_on: [] }
+    - { id: F-017, name: "Contact / scheduling", why: "Meetings", user_story: "Quick form or calendar", acceptance: ["Short form/Calendly; success"], edge_cases: ["Spam; timezones"], depends_on: ["F-006"] }
+    - { id: F-018, name: "Legal & consent", why: "Compliance", user_story: "Understand policy", acceptance: ["Privacy/Terms/Tokusho; consent log"], edge_cases: ["Versioning"], depends_on: ["F-006"] }
+  non_functional:
+    performance: { ttfb_ms: 200, tti_ms: 1500, rps_peak: 100 }
+    reliability: { slo: "site:99.9%/month, api:99.5%/month", sla: "internal target; P1 within 24h, best-effort" }
+    security:
+      pii: true
+      controls: ["https-only + HSTS","CSP (default-src 'self')","Webhook signature verification (Stripe)","Form rate limit + honeypot","Secrets in Vercel env; least privilege","No cardholder data (Stripe Checkout)","Consent token + Origin/Referer check"]
+    accessibility: { target: "WCAG2.2-AA" }
+    compliance: ["APPI","Act on Specified Commercial Transactions","External Transmission Regulations","PCI-DSS delegated to Stripe","JIS X 8341-3"]
+assumptions:
+  - "Static pages cached on Vercel CDN; API routes low RPS"
+  - "Stripe Checkout + Webhooks; no card data stored/processed"
+  - "Analytics: Vercel (cookieless); GA/others may come later"
+  - "Primary audience in JP; content in Japanese"
+constraints:
+  - "No new dependencies without explicit approval"
+  - "Env secrets managed per env (dev/stg/prod) on Vercel"
+  - "Initial storage: Google Sheets; upgrade path to Supabase"
+  - "Performance budgets: js<=120KB gz, css<=60KB gz, hero<=200KB (mobile)"
+  - "Fonts: 2 files/language; use font-display:swap"
+dependencies: ["Astro","TailwindCSS","Stripe Checkout","Vercel Analytics","Google Sheets API"]
+risks:
+  - { id: R-001, description: "Bot/spam submissions", impact: high, likelihood: med, mitigation: "Honeypot + rate limit + IP monitor" }
+  - { id: R-002, description: "Email delivery delays", impact: med, likelihood: med, mitigation: "Resend flow, expiry pages, clear UX" }
+  - { id: R-003, description: "Webhook failures/replays", impact: high, likelihood: low, mitigation: "Signature verify + idempotency + retries" }
+  - { id: R-004, description: "Performance regressions", impact: high, likelihood: med, mitigation: "Budgets + CI checks + image/font optimization" }
+  - { id: R-005, description: "Compliance misalignment", impact: high, likelihood: low, mitigation: "Legal pages, consent logs, review" }
+wbs:
+  - { id: T-101, name: "Information Architecture", deliverables: ["Sitemap","Nav"], owner: "Web Team", depends_on: [] }
+  - { id: T-102, name: "UI Foundation", deliverables: ["Tailwind config","Components"], owner: "Web Team", depends_on: ["T-101"] }
+  - { id: T-103, name: "Content Collections", deliverables: ["MDX schemas"], owner: "Web Team", depends_on: ["T-102"] }
+  - { id: T-104, name: "Lead LP & Form", deliverables: ["LP page","Form validation"], owner: "Web Team", depends_on: ["T-103"] }
+  - { id: T-105, name: "PDF Delivery & Storage", deliverables: ["Email + token","Sheets upsert"], owner: "Web Team", depends_on: ["T-104"] }
+  - { id: T-106, name: "Stripe Checkout & Webhook", deliverables: ["Checkout","Webhook"], owner: "Web Team", depends_on: ["T-102"] }
+  - { id: T-107, name: "SEO & Analytics", deliverables: ["Meta/OGP","Sitemap","Events"], owner: "Web Team", depends_on: ["T-101"] }
+  - { id: T-108, name: "Legal & Consent", deliverables: ["Pages","Consent log"], owner: "Web Team", depends_on: ["T-104"] }
+  - { id: T-109, name: "Deploy & Env", deliverables: ["Vercel envs","CI"], owner: "Web Team", depends_on: [] }
+tech_stack:
+  frontend: "Astro + Tailwind CSS + MDX"
+  backend: "Astro API Routes (Node)"
+  db: "Google Sheets (v1); optional Tokens sheet"
+  hosting: "Vercel (static + functions)"
+api:
+  - { method: POST, path: "/api/lead", request: { schema_ref: "LeadSubmit" }, response: { schema_ref: "LeadSubmitResult" } }
+  - { method: GET, path: "/api/pdf/{token}", request: { schema_ref: "DownloadToken" }, response: { schema_ref: "Redirect302" } }
+  - { method: POST, path: "/api/stripe/webhook", request: { schema_ref: "StripeWebhook" }, response: { schema_ref: "Ack" } }
+data_model:
+  erd_mermaid: |
+    erDiagram
+      LEAD ||--o{ DOWNLOAD_TOKEN : has
+      LEAD {
+        string id
+        string email
+        string name
+        string company
+        string consent_version
+        string utm_source
+        string utm_medium
+        string utm_campaign
+        datetime created_at
+      }
+      DOWNLOAD_TOKEN {
+        string id
+        string lead_id
+        string token
+        datetime expires_at
+        datetime used_at
+      }
+      PURCHASE {
+        string id
+        string email
+        string stripe_session_id
+        string status
+        datetime purchased_at
+      }
+acceptance_plan:
+  strategy: "Scenario-based acceptance tied to F-IDs and Phase 3 metrics"
+  test_cases:
+    - "Lead submit → email within 2 minutes → PDF accessible (valid token)"
+    - "Expired token → 400/expired page; analytics event fired"
+    - "Checkout success → webhook → confirmation email sent"
+    - "LCP p75 ≤ 2.0s on key pages (Home/LP)"
+release_plan:
+  environments: ["dev","stg","prod"]
+  ci_cd: ["Format","Lint","Type","Build","Deploy with envs"]
+version: 1
+

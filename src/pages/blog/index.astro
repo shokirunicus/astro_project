@@ -1,0 +1,33 @@
+---
+import Base from "../../layouts/Base.astro";
+import Nav from "../../components/Nav.astro";
+import Footer from "../../components/Footer.astro";
+import Seo from "../../components/Seo.astro";
+import { getCollection } from 'astro:content';
+
+const posts = await getCollection('blog', ({ data }) => !data.draft);
+const sorted = posts.sort((a,b) => (b.data.date || '').localeCompare(a.data.date || ''));
+---
+<Base title="Blog | AIHALO" description="AIHALOのブログ。AIコンサルの実例と意思決定に役立つ知見を発信します。">
+  <Fragment slot="head">
+    <Seo title="ブログ" description="AIコンサルの実例と意思決定に役立つ知見を発信" path="/blog" breadcrumbs={[{name:'Home', url:'/'},{name:'Blog', url:'/blog'}]} />
+  </Fragment>
+  <Fragment slot="nav"><Nav /></Fragment>
+  <h1 class="text-3xl md:text-4xl font-semibold">ブログ</h1>
+  <h2 class="sr-only">最新記事</h2>
+  <ul class="mt-6 space-y-4">
+    {sorted.map((p) => (
+      <li>
+        <a class="text-navy underline" href={`/blog/${p.slug}`}>
+          {p.data.title}
+        </a>
+        {p.data.date && <span class="ml-2 text-sm text-slate-500">{p.data.date}</span>}
+        {p.data.tags?.length ? (
+          <span class="ml-2 text-xs text-slate-600">{p.data.tags.join(', ')}</span>
+        ) : null}
+        {p.data.description && <p class="text-slate-700">{p.data.description}</p>}
+      </li>
+    ))}
+  </ul>
+  <Fragment slot="footer"><Footer /></Fragment>
+</Base>

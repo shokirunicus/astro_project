@@ -1,0 +1,39 @@
+---
+import { buildMeta, organizationJsonLd, breadcrumbJsonLd, serviceJsonLd, faqJsonLd, articleJsonLd } from "../lib/seo";
+import { SITE } from "../lib/site";
+
+interface Props {
+  title?: string;
+  description?: string;
+  path?: string;
+  image?: string;
+  breadcrumbs?: { name: string; url: string }[];
+  type?: 'website' | 'service' | 'article' | 'faq';
+  service?: { name: string; description: string; url?: string };
+  faq?: { question: string; answer: string }[];
+  article?: { title: string; description?: string; slug: string; datePublished?: string; dateModified?: string; image?: string };
+}
+const props = Astro.props as Props;
+const meta = buildMeta({ title: props.title, description: props.description, path: props.path, image: props.image || '/og/default.svg' });
+const jsonLd: any[] = [organizationJsonLd()];
+if (props.breadcrumbs?.length) jsonLd.push(breadcrumbJsonLd(props.breadcrumbs));
+if (props.type === 'service' && props.service) jsonLd.push(serviceJsonLd(props.service));
+if (props.type === 'faq' && props.faq) jsonLd.push(faqJsonLd(props.faq));
+if (props.type === 'article' && props.article) jsonLd.push(articleJsonLd(props.article));
+---
+<!-- Basic SEO / OGP / Twitter -->
+<meta name="description" content={meta.description} />
+<meta property="og:title" content={meta.og.title} />
+<meta property="og:description" content={meta.og.description} />
+<meta property="og:type" content={meta.og.type} />
+<meta property="og:url" content={meta.og.url} />
+<meta property="og:image" content={meta.og.image} />
+<meta name="twitter:card" content={meta.twitter.card} />
+<meta name="twitter:site" content={SITE.twitter} />
+<meta name="twitter:title" content={meta.twitter.title} />
+<meta name="twitter:description" content={meta.twitter.description} />
+<meta name="twitter:image" content={meta.twitter.image} />
+
+{jsonLd.map((obj) => (
+  <script type="application/ld+json" set:html={JSON.stringify(obj)} />
+))}
