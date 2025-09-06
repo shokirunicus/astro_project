@@ -20,9 +20,8 @@ function getIp(req: Request) {
   if (xff) return xff.split(',')[0].trim();
   const real = h.get('x-real-ip') || h.get('cf-connecting-ip');
   if (real) return real;
-  // Fallback: reduce global throttle blast radius by mixing UA
-  const ua = h.get('user-agent') || 'na';
-  return `unknown:${ua.slice(0, 16)}`;
+  // Fallback: use a constant to avoid User-Agent spoofing bypass
+  return 'unknown:fallback';
 }
 
 function checkRate(ip: string) {
@@ -119,8 +118,11 @@ async function sendEmailViaResend(to: string, token?: string) {
       },
       body: JSON.stringify({ from, to, subject, text, html }),
     });
-  } catch {
-    // Do not leak provider errors to client; best-effort
+  } catch (error) {
+    // 開発環境ではエラーをログ出力（本番ではsilent failで情報漏洩を防止）
+    if (process.env.NODE_ENV === 'development') {
+      try { console.error('[Resend] Email sending failed:', error); } catch {}
+    }
   }
 }
 
@@ -154,9 +156,16 @@ export async function POST({ request }: { request: Request }) {
     }
 
     // Issue HMAC token (24h)
-    const secret = process.env['LEAD_HMAC_SECRET'] || '';
+    const secret = process.env['LEAD_HMAC_SECRET'];
+    if (!secret) {
+      const h = secHeaders({ 'content-type': 'application/json' });
+      return new Response(
+        JSON.stringify({ ok: false, error: 'server_misconfigured' }),
+        { status: 500, headers: h },
+      );
+    }
     const exp = now() + 24 * 60 * 60 * 1000;
-    const token = secret ? signToken({ sub: email, name, company, exp, purpose: 'pdf' }, secret) : undefined;
+    const token = signToken({ sub: email, name, company, exp, purpose: 'pdf' }, secret);
 
     // Email send (best-effort); Slack notify; Sheets upsert are optional next steps
     if (token) {
@@ -187,7 +196,13 @@ export async function POST({ request }: { request: Request }) {
 }
 
 // best-effort GC for in-memory rate store to mitigate leak on long-lived processes
-const GC_FLAG = Symbol.for('aihalo.rate.gc');
+const GC_INTERVAL = 900_000; // 15分
+const MAX_ENTRIES = 10000; // 最大エントリ数
+
+// プロセス固有の初期化（複数プロセスでの競合を避ける）
+const processId = (typeof process !== 'undefined' && (process as any).pid) || Math.random().toString(36);
+const GC_FLAG = Symbol.for(`aihalo.rate.gc.${processId}`);
+
 // @ts-ignore
 if (!(globalThis as any)[GC_FLAG]) {
   // @ts-ignore
@@ -195,9 +210,29 @@ if (!(globalThis as any)[GC_FLAG]) {
   setInterval(() => {
     try {
       const cutoff = now() - WINDOW_MS;
+      let cleaned = 0;
+
+      // 期限切れエントリの削除
       for (const [ip, rec] of rateStore) {
-        if (rec.resetAt < cutoff) rateStore.delete(ip);
+        if (rec.resetAt < cutoff) {
+          rateStore.delete(ip);
+          cleaned++;
+        }
       }
-    } catch {}
-  }, 3_600_000); // hourly
+
+      // エントリ数上限チェック（古いものから削除）
+      if (rateStore.size > MAX_ENTRIES) {
+        const entries = Array.from(rateStore.entries()).sort((a, b) => a[1].resetAt - b[1].resetAt);
+        const toDelete = entries.slice(0, rateStore.size - MAX_ENTRIES);
+        toDelete.forEach(([ip]) => rateStore.delete(ip));
+      }
+
+      // デバッグログ（開発環境のみ）
+      if (process.env.NODE_ENV === 'development' && cleaned > 0) {
+        try { console.log(`[GC] Cleaned ${cleaned} entries, current size: ${rateStore.size}`); } catch {}
+      }
+    } catch (error) {
+      try { console.error('[GC] Failed:', error); } catch {}
+    }
+  }, GC_INTERVAL);
 }
