@@ -1,24 +1,54 @@
 ---
-// Placeholder form markup only. Submission handled by /api/lead (stubbed).
+// ネイティブフォーム（/api/lead へPOST）
 ---
-<form method="post" action="/api/lead">
-  <label>
-    お名前
-    <input name="name" type="text" maxlength="100" />
+<form method="post" action="/api/lead" class="space-y-4">
+  <label class="block">
+    <span class="text-sm font-medium text-gray-700">お名前</span>
+    <input name="name" type="text" maxlength="100"
+           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500" />
   </label>
-  <label>
-    会社名
-    <input name="company" type="text" maxlength="200" />
-  </label>
-  <label>
-    メールアドレス
-    <input name="email" type="email" required />
-  </label>
-  <label>
-    <input name="consent" type="checkbox" value="1" required />
-    プライバシーポリシーに同意
-  </label>
-  <input type="text" name="hp" aria-hidden="true" tabindex="-1" style="position:absolute;left:-9999px" />
-  <button type="submit">送信してPDFを受け取る</button>
-</form>
 
+  <label class="block">
+    <span class="text-sm font-medium text-gray-700">会社名</span>
+    <input name="company" type="text" maxlength="200"
+           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500" />
+  </label>
+
+  <label class="block">
+    <span class="text-sm font-medium text-gray-700">メールアドレス *</span>
+    <input name="email" type="email" required
+           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500" />
+  </label>
+
+  <label class="flex items-center space-x-2">
+    <input name="consent" type="checkbox" value="1" required
+           class="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500" />
+    <span class="text-sm text-gray-700">
+      <a href="/legal/privacy" class="underline">プライバシーポリシー</a>に同意
+    </span>
+  </label>
+
+  <input type="text" name="hp" aria-hidden="true" tabindex="-1" style="position:absolute;left:-9999px" />
+
+  <button type="submit"
+          class="w-full py-3 px-4 bg-cyan-500 text-white font-semibold rounded-lg hover:bg-cyan-600 transition duration-200">
+    送信してPDFを受け取る
+  </button>
+</form>
+<script is:inline>
+  (function() {
+    const f = document.currentScript?.previousElementSibling as HTMLFormElement | null;
+    if (!f) return;
+    f.addEventListener('submit', function() {
+      try {
+        const fd = new FormData(f);
+        const email = String(fd.get('email') || '');
+        const email_domain = email.includes('@') ? email.split('@')[1] : '';
+        const url = new URL(location.href);
+        const params: any = { email_domain };
+        ['utm_source','utm_medium'].forEach(k => { const v = url.searchParams.get(k); if (v) params[k] = v; });
+        if (typeof (window as any).aihaloTrack === 'function') (window as any).aihaloTrack('lead_form_submit', params);
+      } catch {}
+    }, { capture: true });
+  })();
+  </script>

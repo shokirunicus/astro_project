@@ -1,0 +1,47 @@
+---
+import ConsentBanner from './ConsentBanner.astro';
+const MEASUREMENT_ID = import.meta.env.GA_MEASUREMENT_ID as string | undefined;
+---
+{MEASUREMENT_ID && (
+  <Fragment>
+    <script is:inline>
+      (function () {
+        const MID = '${MEASUREMENT_ID}';
+        const KEY = 'ga_consent';
+        const granted = typeof localStorage !== 'undefined' && localStorage.getItem(KEY) === 'granted';
+        (window as any).dataLayer = (window as any).dataLayer || [];
+        function gtag(){(window as any).dataLayer.push(arguments);} (window as any).gtag = gtag;
+        gtag('consent', 'default', { 'analytics_storage': granted ? 'granted' : 'denied' });
+
+        function loadGtag() {
+          if ((window as any).__gtagLoaded || !MID) return;
+          (window as any).__gtagLoaded = true;
+          const s = document.createElement('script');
+          s.async = true;
+          s.src = 'https://www.googletagmanager.com/gtag/js?id=' + MID;
+          document.head.appendChild(s);
+          gtag('js', new Date());
+          gtag('config', MID, { anonymize_ip: true });
+        }
+        if (granted) loadGtag();
+
+        (window as any).aihaloConsentGrant = function () {
+          try { localStorage.setItem(KEY, 'granted'); } catch {}
+          gtag('consent', 'update', { 'analytics_storage': 'granted' });
+          loadGtag();
+          const b = document.getElementById('ga-consent-banner'); if (b) b.remove();
+        };
+        (window as any).aihaloConsentDeny = function () {
+          try { localStorage.setItem(KEY, 'denied'); } catch {}
+          gtag('consent', 'update', { 'analytics_storage': 'denied' });
+          const b = document.getElementById('ga-consent-banner'); if (b) b.remove();
+        };
+
+        (window as any).aihaloTrack = function (name, params) {
+          try { gtag('event', name, params || {}); } catch {}
+        };
+      })();
+    </script>
+    <ConsentBanner />
+  </Fragment>
+)}

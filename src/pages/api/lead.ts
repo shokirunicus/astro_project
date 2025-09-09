@@ -1,8 +1,22 @@
 // In-memory rate limiter (per-IP)
 const rateStore: Map<string, { count: number; resetAt: number }> = new Map();
 
+function envVar(name: string): string | undefined {
+  try {
+    // Astroのサーバーランタイムでも import.meta.env は利用可能
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ie = (typeof import.meta !== 'undefined' ? (import.meta as any)?.env : undefined) || {};
+    if (ie && ie[name] !== undefined) return ie[name];
+    if (typeof process !== 'undefined' && process.env) return process.env[name];
+    return undefined;
+  } catch (error) {
+    try { console.error(`[envVar] Error reading ${name}:`, error); } catch {}
+    return undefined;
+  }
+}
+
 function readInt(name: string, def: number) {
-  const v = process.env[name];
+  const v = envVar(name);
   const n = v ? parseInt(v, 10) : NaN;
   return Number.isFinite(n) && n > 0 ? n : def;
 }
@@ -58,7 +72,10 @@ function secHeaders(init?: HeadersInit) {
 }
 
 import crypto from 'node:crypto';
-import { absoluteUrl } from '../../lib/site';
+import fs from 'node:fs/promises';
+import { google } from 'googleapis';
+import { absoluteUrl, SITE } from '../../lib/site';
+import { notifySlack } from '../../lib/slack';
 export const prerender = false;
 
 function base64url(buf: Buffer) {
@@ -99,17 +116,29 @@ async function parseBody(request: Request): Promise<Record<string, any>> {
 
 async function sendEmailViaResend(to: string, token?: string) {
   try {
-    const apiKey = process.env['RESEND_API_KEY'];
+    const apiKey = envVar('RESEND_API_KEY');
     if (!apiKey) return; // silently skip if not configured
-    const from = process.env['RESEND_FROM'] || 'no-reply@example.com';
-    const subject = process.env['RESEND_SUBJECT'] || 'AIHALO 資料ダウンロードリンク';
+    const from = envVar('RESEND_FROM') || 'no-reply@example.com';
+    const subject = envVar('RESEND_SUBJECT') || '【AIHALO】資料ダウンロードリンクのご案内';
     const link = token ? absoluteUrl(`/api/pdf/${encodeURIComponent(token)}`) : undefined;
+    const privacy = absoluteUrl('/legal/privacy');
     const text = link
-      ? `資料のダウンロードリンク: ${link}\n本リンクは24時間有効です。`
-      : '資料のダウンロード準備が整い次第、別途ご案内します。';
-    const html = link
-      ? `<p>資料のダウンロードリンクは <a href="${link}">${link}</a> です。<br/>このリンクは24時間有効です。</p>`
-      : '<p>資料のダウンロード準備が整い次第、別途ご案内します。</p>';
+      ? `資料のダウンロードリンク: ${link}\n本リンクは24時間有効です。\n\n${SITE.name}\n${SITE.url}\nプライバシーポリシー: ${privacy}`
+      : `資料のダウンロード準備が整い次第、別途ご案内します。\n\n${SITE.name}\n${SITE.url}\nプライバシーポリシー: ${privacy}`;
+    const html = `
+      <div style="font-family:system-ui, -apple-system, Segoe UI, Roboto, Noto Sans JP, sans-serif; line-height:1.6; color:#0f172a">
+        <p>この度は資料のご請求ありがとうございます。</p>
+        ${
+          link
+            ? `<p>資料のダウンロードリンクは <a href="${link}" target="_blank" rel="noopener">${link}</a> です。<br/>このリンクは<strong>24時間</strong>有効です。</p>`
+            : `<p>資料のダウンロード準備が整い次第、別途ご案内します。</p>`
+        }
+        <hr style="margin:24px 0;border:none;border-top:1px solid #e2e8f0" />
+        <p style="font-size:12px;color:#475569">
+          ${SITE.name} | <a href="${SITE.url}" target="_blank" rel="noopener">${SITE.url}</a><br/>
+          <a href="${privacy}" target="_blank" rel="noopener">プライバシーポリシー</a>
+        </p>
+      </div>`;
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -122,6 +151,78 @@ async function sendEmailViaResend(to: string, token?: string) {
     // 開発環境ではエラーをログ出力（本番ではsilent failで情報漏洩を防止）
     if (process.env.NODE_ENV === 'development') {
       try { console.error('[Resend] Email sending failed:', error); } catch {}
+    }
+  }
+}
+
+// ---------------- Google Sheets integration (via googleapis) ----------------
+async function getSheetsClient() {
+  try {
+    const scopes = ['https://www.googleapis.com/auth/spreadsheets'];
+    const gac = envVar('GOOGLE_APPLICATION_CREDENTIALS') || '';
+
+    let auth: any;
+    if (gac) {
+      if (gac.trim().startsWith('{')) {
+        // JSON content provided directly (e.g., Vercel Secret)
+        const credentials = JSON.parse(gac);
+        auth = new google.auth.GoogleAuth({ credentials, scopes });
+      } else {
+        // Path to JSON file
+        auth = new google.auth.GoogleAuth({ keyFile: gac, scopes });
+      }
+    } else {
+      // Base64埋め込み（SHEETS_SERVICE_ACCOUNT_JSON）に対応
+      const b64 = envVar('SHEETS_SERVICE_ACCOUNT_JSON');
+      if (b64) {
+        try {
+          const jsonStr = Buffer.from(b64, 'base64').toString('utf8');
+          const credentials = JSON.parse(jsonStr);
+          const auth = new google.auth.GoogleAuth({ credentials, scopes });
+          const authClient = await auth.getClient();
+          return google.sheets({ version: 'v4', auth: authClient });
+        } catch (e) {
+          if (process.env.NODE_ENV === 'development') {
+            try { console.error('[Sheets] Base64 credentials parse failed', e); } catch {}
+          }
+        }
+      }
+
+      // Fallback: separate vars
+      const client_email = envVar('SHEETS_CLIENT_EMAIL');
+      const pkPath = envVar('SHEETS_PRIVATE_KEY_PATH');
+      if (client_email && pkPath) {
+        const private_key = await fs.readFile(pkPath, 'utf8');
+        auth = new google.auth.GoogleAuth({ credentials: { client_email, private_key }, scopes });
+      }
+    }
+
+    if (!auth) return null;
+    const authClient = await auth.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: authClient });
+    return sheets;
+  } catch {
+    return null;
+  }
+}
+
+async function appendLeadRowToSheets({ email, name, company }: { email: string; name: string; company: string }) {
+  try {
+    const spreadsheetId = envVar('SHEETS_SPREADSHEET_ID');
+    if (!spreadsheetId) return;
+    const sheets = await getSheetsClient();
+    if (!sheets) return;
+
+    const values = [[new Date().toISOString(), email, name, company, '']];
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: 'A1',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values },
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      try { console.error('[Sheets] append failed:', error); } catch {}
     }
   }
 }
@@ -156,7 +257,18 @@ export async function POST({ request }: { request: Request }) {
     }
 
     // Issue HMAC token (24h)
-    const secret = process.env['LEAD_HMAC_SECRET'];
+    const secret = envVar('LEAD_HMAC_SECRET');
+    // デバッグ（開発時のみ）：環境変数の読込状況を確認
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        // 価値（中身）は出さない。存在有無とキー一覧のみ表示。
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const keys = Object.keys(((import.meta as any)?.env) || {});
+        console.log('[DEBUG] LEAD_HMAC_SECRET exists:', !!secret);
+        console.log('[DEBUG] import.meta.env keys:', keys);
+        console.log('[DEBUG] process.env.LEAD_HMAC_SECRET exists:', !!process.env['LEAD_HMAC_SECRET']);
+      } catch {}
+    }
     if (!secret) {
       const h = secHeaders({ 'content-type': 'application/json' });
       return new Response(
@@ -165,13 +277,29 @@ export async function POST({ request }: { request: Request }) {
       );
     }
     const exp = now() + 24 * 60 * 60 * 1000;
-    const token = signToken({ sub: email, name, company, exp, purpose: 'pdf' }, secret);
+    const token = signToken({ sub: email, name, company, exp, purpose: 'pdf', ip, uses: 0, maxUses: 1 }, secret);
 
-    // Email send (best-effort); Slack notify; Sheets upsert are optional next steps
-    if (token) {
-      // Fire-and-forget awaited minimally to reduce latency; ignore errors
-      await sendEmailViaResend(email, token).catch(() => {});
-    }
+    // Email send (best-effort)
+    if (token) await sendEmailViaResend(email, token).catch(() => {});
+
+    // Sheets upsert (best-effort)
+    await appendLeadRowToSheets({ email, name, company }).catch(() => {});
+
+    // Slack notify (best-effort)
+    try {
+      const ref = request.headers.get('referer');
+      const utm: Record<string,string> = {};
+      try {
+        if (ref) {
+          const u = new URL(ref);
+          for (const k of ['utm_source','utm_medium','utm_campaign','utm_content','utm_term']) {
+            const v = u.searchParams.get(k);
+            if (v) utm[k] = v;
+          }
+        }
+      } catch {}
+      await notifySlack({ email, name, company, utm, ref, ts: new Date().toISOString() }).catch(() => {});
+    } catch {}
 
     // Respond: redirect for form submits, JSON for API
     const ct = request.headers.get('content-type') || '';
