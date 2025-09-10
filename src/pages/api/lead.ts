@@ -103,6 +103,7 @@ async function sendEmailViaResend(to: string, token?: string) {
     if (!apiKey) return; // silently skip if not configured
     const from = process.env['RESEND_FROM'] || 'no-reply@example.com';
     const subject = process.env['RESEND_SUBJECT'] || 'AIHALO 資料ダウンロードリンク';
+    const debug = ((process.env['LEAD_DEBUG'] || '').toLowerCase() === '1' || (process.env['LEAD_DEBUG'] || '').toLowerCase() === 'true');
     const link = token ? absoluteUrl(`/api/pdf/${encodeURIComponent(token)}`) : undefined;
     const text = link
       ? `資料のダウンロードリンク: ${link}\n本リンクは24時間有効です。`
@@ -110,7 +111,7 @@ async function sendEmailViaResend(to: string, token?: string) {
     const html = link
       ? `<p>資料のダウンロードリンクは <a href="${link}">${link}</a> です。<br/>このリンクは24時間有効です。</p>`
       : '<p>資料のダウンロード準備が整い次第、別途ご案内します。</p>';
-    await fetch('https://api.resend.com/emails', {
+    const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -118,6 +119,9 @@ async function sendEmailViaResend(to: string, token?: string) {
       },
       body: JSON.stringify({ from, to, subject, text, html }),
     });
+    if (debug) {
+      try { console.log('[Resend] send status:', resp.status); } catch {}
+    }
   } catch (error) {
     // 開発環境ではエラーをログ出力（本番ではsilent failで情報漏洩を防止）
     if (process.env.NODE_ENV === 'development') {
