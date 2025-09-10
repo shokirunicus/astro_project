@@ -59,6 +59,7 @@ function secHeaders(init?: HeadersInit) {
 
 import crypto from 'node:crypto';
 import { absoluteUrl } from '../../lib/site';
+import { notifySlack } from '../../lib/slack';
 export const prerender = false;
 
 function base64url(buf: Buffer) {
@@ -179,6 +180,10 @@ export async function POST({ request }: { request: Request }) {
     if (token) {
       // Fire-and-forget awaited minimally to reduce latency; ignore errors
       resendStatus = await sendEmailViaResend(email, token).catch(() => undefined);
+      // Slack通知（ベストエフォート）
+      try {
+        await notifySlack({ email, name, company, ts: new Date().toISOString() }).catch(() => {});
+      } catch {}
     }
 
     // Respond: redirect for form submits, JSON for API
