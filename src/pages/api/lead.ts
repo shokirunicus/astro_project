@@ -99,7 +99,9 @@ async function parseBody(request: Request): Promise<Record<string, any>> {
   }
 }
 
-async function sendEmailViaResend(to: string, token?: string): Promise<number | undefined> {
+type ResendResult = { status?: number; body?: string };
+
+async function sendEmailViaResend(to: string, token?: string): Promise<ResendResult | undefined> {
   try {
     const apiKey = process.env['RESEND_API_KEY'];
     if (!apiKey) return; // silently skip if not configured
@@ -121,10 +123,12 @@ async function sendEmailViaResend(to: string, token?: string): Promise<number | 
       },
       body: JSON.stringify({ from, to, subject, text, html }),
     });
+    let bodyTxt = '';
+    try { bodyTxt = await resp.text(); } catch {}
     if (debug) {
-      try { console.log('[Resend] send status:', resp.status); } catch {}
+      try { console.log('[Resend] send status:', resp.status, 'body:', bodyTxt?.slice(0, 200)); } catch {}
     }
-    return resp.status;
+    return { status: resp.status, body: bodyTxt?.slice(0, 200) };
   } catch (error) {
     // 開発環境ではエラーをログ出力（本番ではsilent failで情報漏洩を防止）
     if (process.env.NODE_ENV === 'development') {
@@ -178,12 +182,14 @@ export async function POST({ request }: { request: Request }) {
     // Email send (best-effort); Slack notify; Sheets upsert are optional next steps
     const debug = ((process.env['LEAD_DEBUG'] || '').toLowerCase() === '1' || (process.env['LEAD_DEBUG'] || '').toLowerCase() === 'true');
     let resendStatus: number | undefined = undefined;
+    let resendBody: string | undefined = undefined;
     let slackStatus: number | undefined = undefined;
     let sheetsStatus: number | undefined = undefined;
     let sheetsMode: string | undefined = undefined;
     if (token) {
       // Fire-and-forget awaited minimally to reduce latency; ignore errors
-      resendStatus = await sendEmailViaResend(email, token).catch(() => undefined);
+      const rr = await sendEmailViaResend(email, token).catch(() => undefined);
+      if (rr) { resendStatus = rr.status; resendBody = rr.body; }
       // Slack通知（ベストエフォート）
       try {
         slackStatus = await notifySlack({ email, name, company, ts: new Date().toISOString() }).catch(() => undefined);
@@ -202,6 +208,7 @@ export async function POST({ request }: { request: Request }) {
       const h = secHeaders();
       if (debug) {
         h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
+        if (resendBody) h.set('X-Debug-Resend-Body', resendBody);
         h.set('X-Debug-Slack', typeof slackStatus !== 'undefined' ? String(slackStatus) : 'none');
         h.set('X-Debug-Sheets', typeof sheetsStatus !== 'undefined' ? String(sheetsStatus) : 'none');
         if (sheetsMode) h.set('X-Debug-Sheets-Mode', sheetsMode);
@@ -213,6 +220,7 @@ export async function POST({ request }: { request: Request }) {
       const h = secHeaders();
       if (debug) {
         h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
+        if (resendBody) h.set('X-Debug-Resend-Body', resendBody);
         h.set('X-Debug-Slack', typeof slackStatus !== 'undefined' ? String(slackStatus) : 'none');
         h.set('X-Debug-Sheets', typeof sheetsStatus !== 'undefined' ? String(sheetsStatus) : 'none');
         if (sheetsMode) h.set('X-Debug-Sheets-Mode', sheetsMode);
@@ -223,6 +231,7 @@ export async function POST({ request }: { request: Request }) {
     const h = secHeaders({ 'content-type': 'application/json' });
     if (debug) {
       h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
+      if (resendBody) h.set('X-Debug-Resend-Body', resendBody);
       h.set('X-Debug-Slack', typeof slackStatus !== 'undefined' ? String(slackStatus) : 'none');
       h.set('X-Debug-Sheets', typeof sheetsStatus !== 'undefined' ? String(sheetsStatus) : 'none');
       if (sheetsMode) h.set('X-Debug-Sheets-Mode', sheetsMode);
