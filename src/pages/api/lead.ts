@@ -60,6 +60,7 @@ function secHeaders(init?: HeadersInit) {
 import crypto from 'node:crypto';
 import { absoluteUrl } from '../../lib/site';
 import { notifySlack } from '../../lib/slack';
+import { google } from 'googleapis';
 export const prerender = false;
 
 function base64url(buf: Buffer) {
@@ -177,12 +178,18 @@ export async function POST({ request }: { request: Request }) {
     // Email send (best-effort); Slack notify; Sheets upsert are optional next steps
     const debug = ((process.env['LEAD_DEBUG'] || '').toLowerCase() === '1' || (process.env['LEAD_DEBUG'] || '').toLowerCase() === 'true');
     let resendStatus: number | undefined = undefined;
+    let slackStatus: number | undefined = undefined;
+    let sheetsStatus: number | undefined = undefined;
     if (token) {
       // Fire-and-forget awaited minimally to reduce latency; ignore errors
       resendStatus = await sendEmailViaResend(email, token).catch(() => undefined);
       // Slack通知（ベストエフォート）
       try {
-        await notifySlack({ email, name, company, ts: new Date().toISOString() }).catch(() => {});
+        slackStatus = await notifySlack({ email, name, company, ts: new Date().toISOString() }).catch(() => undefined);
+      } catch {}
+      // Google Sheets 追記（ベストエフォート）
+      try {
+        sheetsStatus = await appendLeadRowToSheets({ email, name, company }).catch(() => undefined);
       } catch {}
     }
 
@@ -191,23 +198,85 @@ export async function POST({ request }: { request: Request }) {
     const accept = request.headers.get('accept') || '';
     if (ct.includes('application/x-www-form-urlencoded') || ct.includes('multipart/form-data')) {
       const h = secHeaders();
-      if (debug) h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
+      if (debug) {
+        h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
+        h.set('X-Debug-Slack', typeof slackStatus !== 'undefined' ? String(slackStatus) : 'none');
+        h.set('X-Debug-Sheets', typeof sheetsStatus !== 'undefined' ? String(sheetsStatus) : 'none');
+      }
       h.set('Location', '/thanks?s=lead');
       return new Response(null, { status: 303, headers: h });
     }
     if (accept.includes('text/html')) {
       const h = secHeaders();
-      if (debug) h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
+      if (debug) {
+        h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
+        h.set('X-Debug-Slack', typeof slackStatus !== 'undefined' ? String(slackStatus) : 'none');
+        h.set('X-Debug-Sheets', typeof sheetsStatus !== 'undefined' ? String(sheetsStatus) : 'none');
+      }
       h.set('Location', '/thanks?s=lead');
       return new Response(null, { status: 303, headers: h });
     }
     const h = secHeaders({ 'content-type': 'application/json' });
-    if (debug) h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
+    if (debug) {
+      h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
+      h.set('X-Debug-Slack', typeof slackStatus !== 'undefined' ? String(slackStatus) : 'none');
+      h.set('X-Debug-Sheets', typeof sheetsStatus !== 'undefined' ? String(sheetsStatus) : 'none');
+    }
     return new Response(JSON.stringify({ ok: true, token }), { status: 200, headers: h });
   } catch (err) {
     try { console.error(`[${new Date().toISOString()}] lead_api_error`, err); } catch {}
     const h = secHeaders({ 'content-type': 'application/json' });
     return new Response(JSON.stringify({ ok: false, error: 'server_error' }), { status: 500, headers: h });
+  }
+}
+
+// ---------------- Google Sheets integration ----------------
+async function getSheetsClient() {
+  try {
+    const scopes = ['https://www.googleapis.com/auth/spreadsheets'];
+    const gac = (process.env['GOOGLE_APPLICATION_CREDENTIALS'] || '').trim();
+    let auth: any;
+    if (gac) {
+      // Try JSON string first
+      if (gac.startsWith('{')) {
+        const credentials = JSON.parse(gac);
+        auth = new google.auth.GoogleAuth({ credentials, scopes });
+      } else {
+        // Try base64 → JSON fallback
+        try {
+          const dec = Buffer.from(gac, 'base64').toString('utf8');
+          if (dec.trim().startsWith('{')) {
+            const credentials = JSON.parse(dec);
+            auth = new google.auth.GoogleAuth({ credentials, scopes });
+          }
+        } catch {}
+      }
+    }
+    if (!auth) return null;
+    const authClient = await auth.getClient();
+    return google.sheets({ version: 'v4', auth: authClient });
+  } catch {
+    return null;
+  }
+}
+
+async function appendLeadRowToSheets({ email, name, company }: { email: string; name: string; company: string }): Promise<number | undefined> {
+  try {
+    const spreadsheetId = process.env['SHEETS_SPREADSHEET_ID'];
+    if (!spreadsheetId) return undefined;
+    const sheets = await getSheetsClient();
+    if (!sheets) return undefined;
+    const values = [[new Date().toISOString(), email, name, company]];
+    const resp = await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: 'A1',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values },
+    });
+    // googleapis v140 doesn't expose HTTP status directly; emulate 200 when no error
+    return 200;
+  } catch {
+    return undefined;
   }
 }
 

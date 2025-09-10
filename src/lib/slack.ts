@@ -7,7 +7,7 @@ export type SlackLeadPayload = {
   ts?: string;
 };
 
-export async function notifySlack(data: SlackLeadPayload) {
+export async function notifySlack(data: SlackLeadPayload): Promise<number | undefined> {
   const url = process.env.SLACK_WEBHOOK_URL;
   const debug = (process.env.LEAD_DEBUG || '').toLowerCase() === '1' || (process.env.LEAD_DEBUG || '').toLowerCase() === 'true';
   if (!url) return; // 未設定ならスキップ
@@ -46,6 +46,8 @@ export async function notifySlack(data: SlackLeadPayload) {
     if (debug) {
       try { console.log('[Slack] notify status:', resp.status); } catch {}
     }
-  } catch {}
+    return resp.status;
+  } catch {
+    return undefined;
+  }
 }
-
