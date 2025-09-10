@@ -252,6 +252,19 @@ async function getSheetsClient() {
         } catch {}
       }
     }
+    // Fallback: separate env var for Base64 JSON
+    if (!auth) {
+      const b64 = (process.env['SHEETS_SERVICE_ACCOUNT_JSON'] || '').trim();
+      if (b64) {
+        try {
+          const jsonStr = Buffer.from(b64, 'base64').toString('utf8');
+          if (jsonStr.trim().startsWith('{')) {
+            const credentials = JSON.parse(jsonStr);
+            auth = new google.auth.GoogleAuth({ credentials, scopes });
+          }
+        } catch {}
+      }
+    }
     if (!auth) return null;
     const authClient = await auth.getClient();
     return google.sheets({ version: 'v4', auth: authClient });
