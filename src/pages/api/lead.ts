@@ -97,7 +97,7 @@ async function parseBody(request: Request): Promise<Record<string, any>> {
   }
 }
 
-async function sendEmailViaResend(to: string, token?: string) {
+async function sendEmailViaResend(to: string, token?: string): Promise<number | undefined> {
   try {
     const apiKey = process.env['RESEND_API_KEY'];
     if (!apiKey) return; // silently skip if not configured
@@ -122,11 +122,13 @@ async function sendEmailViaResend(to: string, token?: string) {
     if (debug) {
       try { console.log('[Resend] send status:', resp.status); } catch {}
     }
+    return resp.status;
   } catch (error) {
     // 開発環境ではエラーをログ出力（本番ではsilent failで情報漏洩を防止）
     if (process.env.NODE_ENV === 'development') {
       try { console.error('[Resend] Email sending failed:', error); } catch {}
     }
+    return undefined;
   }
 }
 
@@ -172,9 +174,11 @@ export async function POST({ request }: { request: Request }) {
     const token = signToken({ sub: email, name, company, exp, purpose: 'pdf' }, secret);
 
     // Email send (best-effort); Slack notify; Sheets upsert are optional next steps
+    const debug = ((process.env['LEAD_DEBUG'] || '').toLowerCase() === '1' || (process.env['LEAD_DEBUG'] || '').toLowerCase() === 'true');
+    let resendStatus: number | undefined = undefined;
     if (token) {
       // Fire-and-forget awaited minimally to reduce latency; ignore errors
-      await sendEmailViaResend(email, token).catch(() => {});
+      resendStatus = await sendEmailViaResend(email, token).catch(() => undefined);
     }
 
     // Respond: redirect for form submits, JSON for API
@@ -182,15 +186,18 @@ export async function POST({ request }: { request: Request }) {
     const accept = request.headers.get('accept') || '';
     if (ct.includes('application/x-www-form-urlencoded') || ct.includes('multipart/form-data')) {
       const h = secHeaders();
+      if (debug && typeof resendStatus !== 'undefined') h.set('X-Debug-Resend', String(resendStatus));
       h.set('Location', '/thanks?s=lead');
       return new Response(null, { status: 303, headers: h });
     }
     if (accept.includes('text/html')) {
       const h = secHeaders();
+      if (debug && typeof resendStatus !== 'undefined') h.set('X-Debug-Resend', String(resendStatus));
       h.set('Location', '/thanks?s=lead');
       return new Response(null, { status: 303, headers: h });
     }
     const h = secHeaders({ 'content-type': 'application/json' });
+    if (debug && typeof resendStatus !== 'undefined') h.set('X-Debug-Resend', String(resendStatus));
     return new Response(JSON.stringify({ ok: true, token }), { status: 200, headers: h });
   } catch (err) {
     try { console.error(`[${new Date().toISOString()}] lead_api_error`, err); } catch {}
