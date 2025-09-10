@@ -186,18 +186,18 @@ export async function POST({ request }: { request: Request }) {
     const accept = request.headers.get('accept') || '';
     if (ct.includes('application/x-www-form-urlencoded') || ct.includes('multipart/form-data')) {
       const h = secHeaders();
-      if (debug && typeof resendStatus !== 'undefined') h.set('X-Debug-Resend', String(resendStatus));
+      if (debug) h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
       h.set('Location', '/thanks?s=lead');
       return new Response(null, { status: 303, headers: h });
     }
     if (accept.includes('text/html')) {
       const h = secHeaders();
-      if (debug && typeof resendStatus !== 'undefined') h.set('X-Debug-Resend', String(resendStatus));
+      if (debug) h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
       h.set('Location', '/thanks?s=lead');
       return new Response(null, { status: 303, headers: h });
     }
     const h = secHeaders({ 'content-type': 'application/json' });
-    if (debug && typeof resendStatus !== 'undefined') h.set('X-Debug-Resend', String(resendStatus));
+    if (debug) h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
     return new Response(JSON.stringify({ ok: true, token }), { status: 200, headers: h });
   } catch (err) {
     try { console.error(`[${new Date().toISOString()}] lead_api_error`, err); } catch {}
