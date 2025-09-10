@@ -180,6 +180,7 @@ export async function POST({ request }: { request: Request }) {
     let resendStatus: number | undefined = undefined;
     let slackStatus: number | undefined = undefined;
     let sheetsStatus: number | undefined = undefined;
+    let sheetsMode: string | undefined = undefined;
     if (token) {
       // Fire-and-forget awaited minimally to reduce latency; ignore errors
       resendStatus = await sendEmailViaResend(email, token).catch(() => undefined);
@@ -189,7 +190,8 @@ export async function POST({ request }: { request: Request }) {
       } catch {}
       // Google Sheets 追記（ベストエフォート）
       try {
-        sheetsStatus = await appendLeadRowToSheets({ email, name, company }).catch(() => undefined);
+        const r = await appendLeadRowToSheets({ email, name, company }).catch(() => undefined);
+        if (r) { sheetsStatus = r.status; sheetsMode = r.mode; }
       } catch {}
     }
 
@@ -202,6 +204,7 @@ export async function POST({ request }: { request: Request }) {
         h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
         h.set('X-Debug-Slack', typeof slackStatus !== 'undefined' ? String(slackStatus) : 'none');
         h.set('X-Debug-Sheets', typeof sheetsStatus !== 'undefined' ? String(sheetsStatus) : 'none');
+        if (sheetsMode) h.set('X-Debug-Sheets-Mode', sheetsMode);
       }
       h.set('Location', '/thanks?s=lead');
       return new Response(null, { status: 303, headers: h });
@@ -212,6 +215,7 @@ export async function POST({ request }: { request: Request }) {
         h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
         h.set('X-Debug-Slack', typeof slackStatus !== 'undefined' ? String(slackStatus) : 'none');
         h.set('X-Debug-Sheets', typeof sheetsStatus !== 'undefined' ? String(sheetsStatus) : 'none');
+        if (sheetsMode) h.set('X-Debug-Sheets-Mode', sheetsMode);
       }
       h.set('Location', '/thanks?s=lead');
       return new Response(null, { status: 303, headers: h });
@@ -221,6 +225,7 @@ export async function POST({ request }: { request: Request }) {
       h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
       h.set('X-Debug-Slack', typeof slackStatus !== 'undefined' ? String(slackStatus) : 'none');
       h.set('X-Debug-Sheets', typeof sheetsStatus !== 'undefined' ? String(sheetsStatus) : 'none');
+      if (sheetsMode) h.set('X-Debug-Sheets-Mode', sheetsMode);
     }
     return new Response(JSON.stringify({ ok: true, token }), { status: 200, headers: h });
   } catch (err) {
@@ -231,16 +236,19 @@ export async function POST({ request }: { request: Request }) {
 }
 
 // ---------------- Google Sheets integration ----------------
-async function getSheetsClient() {
+async function getSheetsClient(): Promise<{ sheets: any | null; mode: string }> {
+  const debug = ((process.env['LEAD_DEBUG'] || '').toLowerCase() === '1' || (process.env['LEAD_DEBUG'] || '').toLowerCase() === 'true');
   try {
     const scopes = ['https://www.googleapis.com/auth/spreadsheets'];
     const gac = (process.env['GOOGLE_APPLICATION_CREDENTIALS'] || '').trim();
     let auth: any;
+    let mode = 'none';
     if (gac) {
       // Try JSON string first
       if (gac.startsWith('{')) {
         const credentials = JSON.parse(gac);
         auth = new google.auth.GoogleAuth({ credentials, scopes });
+        mode = 'json_string';
       } else {
         // Try base64 → JSON fallback
         try {
@@ -248,6 +256,7 @@ async function getSheetsClient() {
           if (dec.trim().startsWith('{')) {
             const credentials = JSON.parse(dec);
             auth = new google.auth.GoogleAuth({ credentials, scopes });
+            mode = 'base64_gac';
           }
         } catch {}
       }
@@ -261,24 +270,25 @@ async function getSheetsClient() {
           if (jsonStr.trim().startsWith('{')) {
             const credentials = JSON.parse(jsonStr);
             auth = new google.auth.GoogleAuth({ credentials, scopes });
+            mode = 'base64_env';
           }
         } catch {}
       }
     }
-    if (!auth) return null;
+    if (!auth) return { sheets: null, mode };
     const authClient = await auth.getClient();
-    return google.sheets({ version: 'v4', auth: authClient });
+    return { sheets: google.sheets({ version: 'v4', auth: authClient }), mode };
   } catch {
-    return null;
+    return { sheets: null, mode: 'error' };
   }
 }
 
-async function appendLeadRowToSheets({ email, name, company }: { email: string; name: string; company: string }): Promise<number | undefined> {
+async function appendLeadRowToSheets({ email, name, company }: { email: string; name: string; company: string }): Promise<{ status?: number; mode?: string } | undefined> {
   try {
     const spreadsheetId = process.env['SHEETS_SPREADSHEET_ID'];
-    if (!spreadsheetId) return undefined;
-    const sheets = await getSheetsClient();
-    if (!sheets) return undefined;
+    if (!spreadsheetId) return { status: undefined, mode: 'no_spreadsheet_id' };
+    const { sheets, mode } = await getSheetsClient();
+    if (!sheets) return { status: undefined, mode };
     const values = [[new Date().toISOString(), email, name, company]];
     const resp = await sheets.spreadsheets.values.append({
       spreadsheetId,
@@ -287,9 +297,9 @@ async function appendLeadRowToSheets({ email, name, company }: { email: string; 
       requestBody: { values },
     });
     // googleapis v140 doesn't expose HTTP status directly; emulate 200 when no error
-    return 200;
+    return { status: 200, mode };
   } catch {
-    return undefined;
+    return { status: undefined, mode: 'append_error' };
   }
 }
 
