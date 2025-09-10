@@ -240,37 +240,34 @@ async function getSheetsClient(): Promise<{ sheets: any | null; mode: string }> 
   const debug = ((process.env['LEAD_DEBUG'] || '').toLowerCase() === '1' || (process.env['LEAD_DEBUG'] || '').toLowerCase() === 'true');
   try {
     const scopes = ['https://www.googleapis.com/auth/spreadsheets'];
-    const gac = (process.env['GOOGLE_APPLICATION_CREDENTIALS'] || '').trim();
     let auth: any;
     let mode = 'none';
-    if (gac) {
-      // Try JSON string first
+    // Prefer explicit Base64 env to avoid multiline/whitespace pitfalls
+    const b64 = (process.env['SHEETS_SERVICE_ACCOUNT_JSON'] || '').trim();
+    if (!auth && b64) {
+      try {
+        const jsonStr = Buffer.from(b64, 'base64').toString('utf8');
+        if (jsonStr.trim().startsWith('{')) {
+          const credentials = JSON.parse(jsonStr);
+          auth = new google.auth.GoogleAuth({ credentials, scopes });
+          mode = 'base64_env';
+        }
+      } catch {}
+    }
+    // Then try GOOGLE_APPLICATION_CREDENTIALS (JSON string or Base64)
+    const gac = (process.env['GOOGLE_APPLICATION_CREDENTIALS'] || '').trim();
+    if (!auth && gac) {
       if (gac.startsWith('{')) {
         const credentials = JSON.parse(gac);
         auth = new google.auth.GoogleAuth({ credentials, scopes });
         mode = 'json_string';
       } else {
-        // Try base64 → JSON fallback
         try {
           const dec = Buffer.from(gac, 'base64').toString('utf8');
           if (dec.trim().startsWith('{')) {
             const credentials = JSON.parse(dec);
             auth = new google.auth.GoogleAuth({ credentials, scopes });
             mode = 'base64_gac';
-          }
-        } catch {}
-      }
-    }
-    // Fallback: separate env var for Base64 JSON
-    if (!auth) {
-      const b64 = (process.env['SHEETS_SERVICE_ACCOUNT_JSON'] || '').trim();
-      if (b64) {
-        try {
-          const jsonStr = Buffer.from(b64, 'base64').toString('utf8');
-          if (jsonStr.trim().startsWith('{')) {
-            const credentials = JSON.parse(jsonStr);
-            auth = new google.auth.GoogleAuth({ credentials, scopes });
-            mode = 'base64_env';
           }
         } catch {}
       }
