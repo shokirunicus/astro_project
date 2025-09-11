@@ -107,7 +107,7 @@ async function sendEmailViaResend(to: string, token?: string): Promise<ResendRes
     if (!apiKey) return; // silently skip if not configured
     const from = process.env['RESEND_FROM'] || 'no-reply@example.com';
     const subject = process.env['RESEND_SUBJECT'] || 'AIHALO 資料ダウンロードリンク';
-    const debug = ((process.env['LEAD_DEBUG'] || '').toLowerCase() === '1' || (process.env['LEAD_DEBUG'] || '').toLowerCase() === 'true');
+    const debugLog = ((process.env['LEAD_DEBUG'] || '').toLowerCase() === '1' || (process.env['LEAD_DEBUG'] || '').toLowerCase() === 'true');
     const link = token ? absoluteUrl(`/api/pdf/${encodeURIComponent(token)}`) : undefined;
     const text = link
       ? `資料のダウンロードリンク: ${link}\n本リンクは24時間有効です。`
@@ -115,17 +115,35 @@ async function sendEmailViaResend(to: string, token?: string): Promise<ResendRes
     const html = link
       ? `<p>資料のダウンロードリンクは <a href="${link}">${link}</a> です。<br/>このリンクは24時間有効です。</p>`
       : '<p>資料のダウンロード準備が整い次第、別途ご案内します。</p>';
+    // Anti-spam headers: Reply-To and List-Unsubscribe
+    const m = from.match(/<([^>]+)>/);
+    const fromEmail = (m ? m[1] : from).trim();
+    const fromDomain = fromEmail.includes('@') ? fromEmail.split('@')[1] : undefined;
+    const replyToEnv = (process.env['RESEND_REPLY_TO'] || '').trim();
+    const reply_to = replyToEnv || fromEmail;
+    let listUnsub = (process.env['RESEND_LIST_UNSUBSCRIBE'] || '').trim();
+    if (!listUnsub && fromDomain) {
+      listUnsub = `<mailto:${fromEmail}>, <https://${fromDomain}/unsubscribe>`;
+    }
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from, to, subject, text, html }),
+      body: JSON.stringify({
+        from,
+        to,
+        subject,
+        text,
+        html,
+        reply_to,
+        headers: listUnsub ? { 'List-Unsubscribe': listUnsub } : undefined,
+      }),
     });
     let bodyTxt = '';
     try { bodyTxt = await resp.text(); } catch {}
-    if (debug) {
+    if (debugLog) {
       try { console.log('[Resend] send status:', resp.status, 'body:', bodyTxt?.slice(0, 200)); } catch {}
     }
     return { status: resp.status, body: bodyTxt?.slice(0, 200) };
@@ -181,6 +199,7 @@ export async function POST({ request }: { request: Request }) {
 
     // Email send (best-effort); Slack notify; Sheets upsert are optional next steps
     const debug = ((process.env['LEAD_DEBUG'] || '').toLowerCase() === '1' || (process.env['LEAD_DEBUG'] || '').toLowerCase() === 'true');
+    const debugHeaders = (debug && ((process.env['LEAD_DEBUG_HEADERS'] || '').toLowerCase() === '1' || (process.env['LEAD_DEBUG_HEADERS'] || '').toLowerCase() === 'true'));
     let resendStatus: number | undefined = undefined;
     let resendBody: string | undefined = undefined;
     let slackStatus: number | undefined = undefined;
@@ -206,7 +225,7 @@ export async function POST({ request }: { request: Request }) {
     const accept = request.headers.get('accept') || '';
     if (ct.includes('application/x-www-form-urlencoded') || ct.includes('multipart/form-data')) {
       const h = secHeaders();
-      if (debug) {
+      if (debugHeaders) {
         h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
         if (resendBody) h.set('X-Debug-Resend-Body', resendBody);
         h.set('X-Debug-Slack', typeof slackStatus !== 'undefined' ? String(slackStatus) : 'none');
@@ -218,7 +237,7 @@ export async function POST({ request }: { request: Request }) {
     }
     if (accept.includes('text/html')) {
       const h = secHeaders();
-      if (debug) {
+      if (debugHeaders) {
         h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
         if (resendBody) h.set('X-Debug-Resend-Body', resendBody);
         h.set('X-Debug-Slack', typeof slackStatus !== 'undefined' ? String(slackStatus) : 'none');
@@ -229,7 +248,7 @@ export async function POST({ request }: { request: Request }) {
       return new Response(null, { status: 303, headers: h });
     }
     const h = secHeaders({ 'content-type': 'application/json' });
-    if (debug) {
+    if (debugHeaders) {
       h.set('X-Debug-Resend', typeof resendStatus !== 'undefined' ? String(resendStatus) : 'none');
       if (resendBody) h.set('X-Debug-Resend-Body', resendBody);
       h.set('X-Debug-Slack', typeof slackStatus !== 'undefined' ? String(slackStatus) : 'none');
