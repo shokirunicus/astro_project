@@ -42,9 +42,10 @@ function verifyToken(token: string, secret: string) {
 export async function GET({ params }: { params: { token: string } }) {
   const token = params.token;
   const secret = process.env['LEAD_HMAC_SECRET'] || '';
-  const pdfUrl = process.env['PDF_DOWNLOAD_URL'] || '';
+  const pdfUrlEnv = process.env['PDF_DOWNLOAD_URL'] || '';
+  const blobBase = (process.env['BLOB_BASE_URL'] || '').replace(/\/$/, '');
 
-  if (!secret || !pdfUrl) {
+  if (!secret || (!pdfUrlEnv && !blobBase)) {
     const h = secHeaders({ 'content-type': 'application/json' });
     return new Response(JSON.stringify({ ok: false, error: 'server_misconfigured' }), { status: 500, headers: h });
   }
@@ -64,8 +65,13 @@ export async function GET({ params }: { params: { token: string } }) {
     return new Response(JSON.stringify({ ok: false, error: 'invalid_token' }), { status: 400, headers: h });
   }
 
-  // Optional: add per-token download counters or logging here
+  // Resolve destination (prefer Blob with doc slug)
+  let dest = pdfUrlEnv;
+  try {
+    const doc = (payload as any)?.doc as string | undefined;
+    if (blobBase && doc) dest = `${blobBase}/docs/${encodeURIComponent(doc)}.pdf`;
+  } catch {}
   const h = secHeaders();
-  h.set('Location', pdfUrl);
+  h.set('Location', dest);
   return new Response(null, { status: 302, headers: h });
 }

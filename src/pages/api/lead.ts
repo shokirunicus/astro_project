@@ -178,6 +178,7 @@ export async function POST({ request }: { request: Request }) {
     const email = typeof body.email === 'string' ? body.email.trim() : '';
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     const company = typeof body.company === 'string' ? body.company.trim() : '';
+    const doc = typeof body.doc === 'string' && body.doc.trim() ? body.doc.trim() : 'guide';
     const consent = hasConsent(body.consent);
 
     if (!isEmail(email) || !consent) {
@@ -195,7 +196,7 @@ export async function POST({ request }: { request: Request }) {
       );
     }
     const exp = now() + 24 * 60 * 60 * 1000;
-    const token = signToken({ sub: email, name, company, exp, purpose: 'pdf' }, secret);
+    const token = signToken({ sub: email, name, company, doc, exp, purpose: 'pdf' }, secret);
 
     // Email send (best-effort); Slack notify; Sheets upsert are optional next steps
     const debug = ((process.env['LEAD_DEBUG'] || '').toLowerCase() === '1' || (process.env['LEAD_DEBUG'] || '').toLowerCase() === 'true');
