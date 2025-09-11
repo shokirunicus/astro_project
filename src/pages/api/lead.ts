@@ -118,12 +118,12 @@ async function sendEmailViaResend(to: string, token?: string): Promise<ResendRes
     // Anti-spam headers: Reply-To and List-Unsubscribe
     const m = from.match(/<([^>]+)>/);
     const fromEmail = (m ? m[1] : from).trim();
-    const fromDomain = fromEmail.includes('@') ? fromEmail.split('@')[1] : undefined;
     const replyToEnv = (process.env['RESEND_REPLY_TO'] || '').trim();
     const reply_to = replyToEnv || fromEmail;
+    const unsubUrl = (process.env['LIST_UNSUB_URL'] || absoluteUrl('/unsubscribe')).trim();
     let listUnsub = (process.env['RESEND_LIST_UNSUBSCRIBE'] || '').trim();
-    if (!listUnsub && fromDomain) {
-      listUnsub = `<mailto:${fromEmail}>, <https://${fromDomain}/unsubscribe>`;
+    if (!listUnsub) {
+      listUnsub = `<mailto:${fromEmail}>, <${unsubUrl}>`;
     }
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -138,7 +138,7 @@ async function sendEmailViaResend(to: string, token?: string): Promise<ResendRes
         text,
         html,
         reply_to,
-        headers: listUnsub ? { 'List-Unsubscribe': listUnsub } : undefined,
+        headers: listUnsub ? { 'List-Unsubscribe': listUnsub, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } : undefined,
       }),
     });
     let bodyTxt = '';
